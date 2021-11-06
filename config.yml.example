@@ -10,7 +10,7 @@ instances:
   - listen:
       name: proxy
       host: 127.0.0.1
-      port: 5112
+      port: 8493
     redirect:
       name: postgresql
       host: 127.0.0.1
