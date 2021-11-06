@@ -218,4 +218,4 @@ if(__name__=='__main__'):
         logging.info(f"Starting proxy instance {instance.listen.name} - {instance.redirect.name}")
         proxy = Proxy(instance, plugins)
         proxy.listen()
-        logging.info("Instance started")
+        logging.info("Instance exit")

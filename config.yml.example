@@ -1,10 +1,10 @@
 plugins:
-  - tableau_hll
+  - hyperc 
 
 settings:
-  log-level: debug
-  intercept-log: /home/grandrew/sandbox2/etable/postgresql-proxy/intercept.log
-  general-log: /home/grandrew/sandbox2/etable/postgresql-proxy/general.log
+  log-level: info
+  intercept-log: /var/log/postgresql-proxy/intercept.log
+  general-log: /var/log/postgresql-proxy/general.log
 
 instances:
   - listen:
@@ -18,7 +18,7 @@ instances:
     intercept:
       commands:
         queries:
-          - plugin: tableau_hll
+          - plugin: hyperc 
             function: rewrite_query
         connects:
       responses:
