@@ -39,6 +39,17 @@ CREATE TABLE IF NOT EXISTS public.hc_plan (
     created_time timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP
 )""")
             cur.execute(f"ALTER TABLE public.hc_plan OWNER TO {username}")
+            cur.execute(f"""
+CREATE SEQUENCE public.hc_plan_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;""")
+            cur.execute(f"ALTER TABLE public.hc_plan_id_seq OWNER TO {username}")
+            cur.execute("ALTER SEQUENCE public.hc_plan_id_seq OWNED BY public.hc_plan.id")
+            cur.execute("ALTER TABLE ONLY public.hc_plan ALTER COLUMN id SET DEFAULT nextval('public.hc_plan_id_seq'::regclass)")
             cur.close()
             conn.commit()
             conn.close()
