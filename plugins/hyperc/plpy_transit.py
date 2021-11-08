@@ -172,6 +172,7 @@ for src in plpy.execute(SQL_PROCEDURES):
         fun_src += "    "+src_line+"\n"
     if src['function_name'] == goal_func:
         fun_src += "    DATA.GOAL = True\n"
+    compile(fun_src, f"PROCEDURE {src['function_name']}", 'exec')
     sources_list.append(fun_src)
 
 stub_hashed_commands = " ".join(all_executed_commands)
