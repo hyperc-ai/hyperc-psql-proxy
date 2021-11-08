@@ -163,10 +163,11 @@ input_parameters_classes = {}
 
 sources_list = []
 for src in plpy.execute(SQL_PROCEDURES):
+    if not src['function_arguments'].strip(): continue  # ignore procedures without arguments
     args = ", ".join([f"{argpair.strip().split()[-2]}: {argpair.strip().split()[-1].upper()}_Class" for argpair in src['function_arguments'].split(",")])
     tables_names.extend([f"{argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")])
     input_parameters_classes[src['function_name']] = {f"{argpair.strip().split()[-2]}":f"{argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")}
-    fun_src = f"""def {src['function_name']}({args}):"""
+    fun_src = f"""def {src['function_name']}({args}):\n    pass\n"""
     for src_line in src["source"].split("\n"):
         fun_src += "    "+src_line+"\n"
     if src['function_name'] == goal_func:
