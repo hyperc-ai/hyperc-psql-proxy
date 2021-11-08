@@ -134,8 +134,10 @@ class Proxy:
                         pg_conn.sent(sent)
                     else: 
                         conn.received(recv_data)
+                        self.selector.modify(conn.redirect_conn.sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=conn.redirect_conn)
                 else:
                     conn.received(recv_data)
+                    self.selector.modify(conn.redirect_conn.sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=conn.redirect_conn)
             else:
                 logging.info('%s connection closing %s', conn.name, conn.address)
                 sock.close()
@@ -145,6 +147,8 @@ class Proxy:
                 logging.debug('sending to %s:\n%s', conn.name, conn.out_bytes)
                 sent = sock.send(conn.out_bytes)  # Should be ready to write
                 conn.sent(sent)
+            else:
+                self.selector.modify(sock, events=selectors.EVENT_READ, data=conn)
 
 
 
