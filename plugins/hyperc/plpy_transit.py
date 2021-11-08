@@ -4,6 +4,7 @@
 
 import logzero 
 from logzero import logger 
+import os
 # from typing import Any, TYPE_CHECKING
 
 # if TYPE_CHECKING:
@@ -16,7 +17,6 @@ from collections import defaultdict
 import hyper_etable.etable
 from itertools import combinations
 logzero.logfile("/tmp/plhyperc.log")
-input_py = '/tmp/actions.py'
 
 SQL_PROCEDURES = """
 select n.nspname as function_schema,
@@ -76,6 +76,7 @@ if not plan_id:
 else:
     local_plan_id = plan_id
  
+input_py = f'/tmp/actions_{local_plan_id}.py'
 sql_command_l = sql_command
 supported_commands = ["INSERT", "UPDATE"]
 
@@ -231,6 +232,7 @@ et = hyper_etable.etable.ETable(project_name='test_connnection_trucks')
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
 et.dump_py(out_filename='/tmp/classes.py')
 et.solver_call_plan_n_exec()
+os.remove(input_py)
 
 updates = defaultdict(list)
 inserts = defaultdict(list)
