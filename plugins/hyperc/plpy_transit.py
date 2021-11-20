@@ -12,6 +12,7 @@ import os
 #     sql_command: Any = {}
 
 import hyperc
+import hyperc.settings
 import json
 from collections import defaultdict
 import hyper_etable.etable
@@ -52,6 +53,23 @@ FROM
 WHERE
     table_name = '{table_name}';
 """
+
+# load and apply settings
+SETTINGS_TABLE_NAME = "hc_settings"
+table_settings = plpy.execute(f"SELECT parameter, type, value from {SETTINGS_TABLE_NAME}")
+for setting in table_settings:
+    sname = setting["parameter"]
+    stype = setting["type"]
+    sval = setting["value"]
+    if setting["type"].lower() == "int":
+        value = int(setting["value"])
+    elif setting["type"].lower() == "str":
+        value = str(setting["value"])
+    else:
+        plpy.warning(f"Unsupported setting type {stype} found in {SETTINGS_TABLE_NAME} table: {sname}({stype})={sval} - only 'str' and 'int' are supported")
+        continue
+    setattr(hyperc.settings, sname, value)
+
 
 def to_sql(v):
     if type(v) == int:

@@ -50,6 +50,17 @@ CREATE SEQUENCE public.hc_plan_id_seq
             cur.execute(f"ALTER TABLE public.hc_plan_id_seq OWNER TO {username}")
             cur.execute("ALTER SEQUENCE public.hc_plan_id_seq OWNED BY public.hc_plan.id")
             cur.execute("ALTER TABLE ONLY public.hc_plan ALTER COLUMN id SET DEFAULT nextval('public.hc_plan_id_seq'::regclass)")
+            cur.execute("""
+CREATE TABLE IF NOT EXISTS public.hc_settings
+(
+    parameter text PRIMARY KEY NOT NULL,
+    type text NOT NULL,
+    value text NOT NULL,
+    description text NOT NULL
+);""")
+            cur.execute(f"ALTER TABLE IF EXISTS public.hc_settings OWNER to {username};")
+            cur.execute("""INSERT INTO "public"."hc_settings" ("parameter","type","value","description") VALUES ('DOWNWARD_TOTAL_PUSHES','int','5000000','Maximum problem size in state expansions to compute (prevents OOM by killing grounding task)')""")
+            cur.execute("""INSERT INTO "public"."hc_settings" ("parameter","type","value","description") VALUES ('SOLVER_MAX_TIME','int','120','Maximum cutoff seconds to spend on search')""")
             cur.close()
             conn.commit()
             conn.close()
