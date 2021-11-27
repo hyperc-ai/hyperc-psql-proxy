@@ -51,6 +51,24 @@ CREATE SEQUENCE public.hc_plan_id_seq
             cur.execute("ALTER SEQUENCE public.hc_plan_id_seq OWNED BY public.hc_plan.id")
             cur.execute("ALTER TABLE ONLY public.hc_plan ALTER COLUMN id SET DEFAULT nextval('public.hc_plan_id_seq'::regclass)")
             cur.execute("""
+CREATE TABLE IF NOT EXISTS public.hc_log(
+    id integer PRIMARY KEY NOT NULL,
+    logline text,
+    created_time timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP
+)""")
+            cur.execute(f"ALTER TABLE public.hc_log OWNER TO {username}")
+            cur.execute(f"""
+CREATE SEQUENCE public.hc_log_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;""")
+            cur.execute(f"ALTER TABLE public.hc_log_id_seq OWNER TO {username}")
+            cur.execute("ALTER SEQUENCE public.hc_log_id_seq OWNED BY public.hc_log.id")
+            cur.execute("ALTER TABLE ONLY public.hc_log ALTER COLUMN id SET DEFAULT nextval('public.hc_log_id_seq'::regclass)")
+            cur.execute("""
 CREATE TABLE IF NOT EXISTS public.hc_settings
 (
     parameter text PRIMARY KEY NOT NULL,
