@@ -10,6 +10,14 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 def rewrite_query(query, context):
     plan_id = str(uuid.uuid4())
     query = query.strip()
+    if query.upper().startswith("TRANSIT KILL "):
+        pid = query.split()[-1].replace(";", "")
+        try:
+            int(pid)
+        except:
+            return f"SELECT 'ERROR Cannot kill pid {pid} - wrong pid number';";
+        os.system(f"kill -KILL {pid}")
+        return f"SELECT 'KILL PID {pid}';";
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
         dbname = context['connect_params']['database']
