@@ -19,6 +19,34 @@ import hyper_etable.etable
 from itertools import combinations
 logzero.logfile("/tmp/plhyperc.log")
 
+import logging
+plogger = logging.getLogger('hyperc_progress')
+if len(plogger.handlers) < 1:
+    plogger.setLevel(logging.INFO)
+    fh=logging.FileHandler('/tmp/hyperc.log')
+    plogger.addHandler(fh)
+    from logging import StreamHandler
+    import psycopg2
+
+    class SelfHandler(StreamHandler):
+
+        def __init__(self):
+            StreamHandler.__init__(self)
+            dbname = list(plpy.execute("SELECT current_database()"))[0]["current_database"]
+            self.conn = psycopg2.connect(database=dbname, user="postgres", host="/tmp/")
+
+        def emit(self, record):
+            msg = self.format(record)
+            cur = self.conn.cursor()
+            cur.execute('INSERT INTO hc_log ("logline") VALUES (%s)', (msg,))
+            self.conn.commit()
+    
+    h = SelfHandler()
+    plogger.addHandler(h)
+        
+    
+
+
 SQL_PROCEDURES = """
 select n.nspname as function_schema,
     p.proname as function_name,
