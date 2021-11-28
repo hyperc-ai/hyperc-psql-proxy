@@ -6,6 +6,8 @@ import session
 import threading
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+from collections import defaultdict
+PID_TERMINATIONS = defaultdict(lambda: [0, time.time()])
 
 def rewrite_query(query, context):
     plan_id = str(uuid.uuid4())
@@ -18,6 +20,16 @@ def rewrite_query(query, context):
             return f"SELECT 'ERROR Cannot kill pid {pid} - wrong pid number';";
         os.system(f"kill -KILL {pid}")
         return f"SELECT 'KILL PID {pid}';";
+    if "pg_terminate_backend(".upper() in query.upper():
+        pid = query.split("(")[1].split(")")[0]
+        PID_TERMINATIONS[pid][0] += 1
+        if PID_TERMINATIONS[pid][0] > 1:
+            if time.time() - PID_TERMINATIONS[pid][1] < 5: 
+                del PID_TERMINATIONS[pid]
+                os.system(f"kill -KILL {pid}")
+            else:
+                del PID_TERMINATIONS[pid]
+        return query
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
         dbname = context['connect_params']['database']
