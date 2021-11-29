@@ -103,7 +103,8 @@ for setting in table_settings:
         plpy.error(f"Unsupported setting name {sname} found in {SETTINGS_TABLE_NAME}")
     setattr(hyperc.settings, sname, value)
     os.environ[sname] = str(value)
-    importlib.reload(hyperc.settings)
+    import hyperc.running
+    importlib.reload(hyperc.running)
 
 
 def to_sql(v):

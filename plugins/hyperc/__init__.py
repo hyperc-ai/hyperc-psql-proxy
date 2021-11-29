@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.hc_settings
     description text NOT NULL
 );""")
             cur.execute(f"ALTER TABLE IF EXISTS public.hc_settings OWNER to {username};")
-            cur.execute("""INSERT INTO "public"."hc_settings" ("parameter","type","value","description") VALUES ('DOWNWARD_TOTAL_PUSHES','int','10000000','Maximum problem size in state expansions to compute (prevents OOM by killing grounding task)')""")
+            cur.execute("""INSERT INTO "public"."hc_settings" ("parameter","type","value","description") VALUES ('DOWNWARD_TOTAL_PUSHES','str','5000000','Maximum problem size in state expansions to compute (prevents OOM by killing grounding task)')""")
             cur.execute("""INSERT INTO "public"."hc_settings" ("parameter","type","value","description") VALUES ('SOLVER_MAX_TIME','int','120','Maximum cutoff seconds to spend on search')""")
             cur.close()
             conn.commit()
