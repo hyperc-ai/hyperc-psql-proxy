@@ -5,6 +5,7 @@
 import logzero 
 from logzero import logger 
 import os
+import importlib
 # from typing import Any, TYPE_CHECKING
 
 # if TYPE_CHECKING:
@@ -101,8 +102,9 @@ for setting in table_settings:
     if not sname in hyperc.settings.__dict__:
         plpy.error(f"Unsupported setting name {sname} found in {SETTINGS_TABLE_NAME}")
     setattr(hyperc.settings, sname, value)
-    hyperc.settings.__dict__[sname] = value
     os.environ[sname] = str(value)
+    importlib.reload(hyperc.settings)
+
 
 def to_sql(v):
     if type(v) == int:
