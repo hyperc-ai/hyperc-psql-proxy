@@ -89,18 +89,19 @@ WHERE
 SETTINGS_TABLE_NAME = "hc_settings"
 table_settings = plpy.execute(f"SELECT parameter, type, value from {SETTINGS_TABLE_NAME}")
 for setting in table_settings:
-    sname = setting["parameter"]
+    sname = str(setting["parameter"])
     stype = setting["type"]
     sval = setting["value"]
-    if setting["type"].lower() == "int":
+    if stype.lower() == "int":
         value = int(setting["value"])
-    elif setting["type"].lower() == "str":
+    elif stype.lower() == "str":
         value = str(setting["value"])
     else:
-        plpy.warning(f"Unsupported setting type {stype} found in {SETTINGS_TABLE_NAME} table: {sname}({stype})={sval} - only 'str' and 'int' are supported")
-        continue
+        plpy.error(f"Unsupported setting type {stype} found in {SETTINGS_TABLE_NAME} table: {sname}({stype})={repr(sval)} - only 'str' and 'int' are supported")
+    if not sname in hyperc.settings.__dict__:
+        plpy.error(f"Unsupported setting name {sname} found in {SETTINGS_TABLE_NAME}")
     setattr(hyperc.settings, sname, value)
-
+    hyperc.settings.__dict__[sname] = value
 
 def to_sql(v):
     if type(v) == int:
