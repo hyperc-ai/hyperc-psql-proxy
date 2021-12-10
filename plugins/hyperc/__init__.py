@@ -12,7 +12,7 @@ PID_TERMINATIONS = defaultdict(lambda: [0, time.time()])
 def rewrite_query(query, context):
     plan_id = str(uuid.uuid4())
     query = query.strip()
-    if query.upper().startswith("TRANSIT KILL "):
+    if query.upper().startswith("TRANSIT KILL"):
         pid = query.split()[-1].replace(";", "")
         try:
             int(pid)
