@@ -95,6 +95,8 @@ for setting in table_settings:
     sval = setting["value"]
     if stype.lower() == "int":
         value = int(setting["value"])
+    elif stype.lower() == "float":
+        value = float(setting["value"])
     elif stype.lower() == "str":
         value = str(setting["value"])
     else:
