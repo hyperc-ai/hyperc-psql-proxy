@@ -113,7 +113,7 @@ def to_sql(v):
     if type(v) == int:
         return repr(v)
     elif type(v) == float:
-        plpy.error("Floating point numbers are not supported")
+        # plpy.error("Floating point numbers are not supported")
         return repr(v)
     elif v == None:
         plpy.error("NULL and None are not supported")
