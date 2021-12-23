@@ -23,6 +23,7 @@ class Connection:
         self.in_bytes += in_bytes
         # Read packet from byte array while there are enough bytes to make up a packet.
         # Otherwise wait for more bytes to be received (break and exit)
+        error_count = 0
         while True:
             ptype = self.in_bytes[0:1]
             if ptype == b'\x00':
@@ -53,23 +54,28 @@ class Connection:
             header = self.in_bytes[0:header_length]
             body = self.in_bytes[header_length:length]
             if self.process_inbound_packet(header, body) == False: 
-                break
+                error_count += 1
+                if error_count > 100: 
+                    break
+            else:
+                error_count = 0
             self.in_bytes = self.in_bytes[length:]
             self.init_status = True
 
     def process_inbound_packet(self, header, body):
+        message_nonempty = True
         if header != b'N':
             packet_type = header[0:-4]
             if not packet_type: 
                 logging.warning(f"malformed message from {self.name}")
-                return False
+                message_nonempty = False
             logging.info("intercepting packet of type '%s' from %s", packet_type, self.name)
             body = self.interceptor.intercept(packet_type, body)
             header = packet_type + self.encode_length(len(body) + 4)
         message = header + body
         logging.debug("Received message. Relaying. Speaker: %s, message:\n%s", self.name, message)
         self.redirect_conn.out_bytes += message
-        return True
+        return message_nonempty
 
     def sent(self, num_bytes):
         self.out_bytes = self.out_bytes[num_bytes:]
