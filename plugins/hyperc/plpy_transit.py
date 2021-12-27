@@ -239,6 +239,7 @@ if not goal_func:
     goal_fun_src = []
     # Now generate goal
     for tbl in all_tables_names:
+        if tbl in ("hc_plan", "hc_settings", "hc_log"): continue
         logger.debug(f"Scanning for change {tbl}")
         updates = plpy.execute(f"SELECT * FROM {tbl} WHERE xmin::text = ((txid_current()+1) % (2^32)::bigint)::text;")
         txid_current = plpy.execute(f"SELECT txid_current();")
