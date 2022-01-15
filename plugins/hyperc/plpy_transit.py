@@ -28,6 +28,11 @@ if len(plogger.handlers) < 1:
     plogger.setLevel(logging.INFO)
     fh=logging.FileHandler('/tmp/hyperc.log')
     plogger.addHandler(fh)
+pplogger = logging.getLogger('hyperc_pprogress')
+if len(pplogger.handlers) < 1:
+    pplogger.setLevel(logging.INFO)
+    fh=logging.FileHandler('/tmp/hyperc_parallel.log')
+    pplogger.addHandler(fh)
 
 from logging import StreamHandler
 import psycopg2
