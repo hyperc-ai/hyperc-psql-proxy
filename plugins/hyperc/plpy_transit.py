@@ -278,7 +278,7 @@ with open(input_py, 'w') as file:
     file.write(source)
 
 base = {}
-for t_n in tables_names:
+for t_n in set(tables_names):
     base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 1000))))
     row_check = next(iter(base[t_n].values()))
     logger.debug(base[t_n])
