@@ -287,7 +287,7 @@ for t_n in set(tables_names):
             plpy.error(f"NULL and None values in tables for HyperC procedures are not supported (table `{t_n}` column `{col}`)")
 
 
-et = hyper_etable.etable.ETable(project_name='test_connnection_trucks')
+et = hyper_etable.etable.ETable(project_name='hypercdb')
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
 et.dump_py(out_filename='/tmp/classes.py')
 et.solver_call_plan_n_exec()
