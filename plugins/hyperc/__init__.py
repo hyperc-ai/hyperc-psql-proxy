@@ -20,6 +20,14 @@ def rewrite_query(query, context):
             return f"SELECT 'ERROR Cannot kill pid {pid} - wrong pid number';";
         os.system(f"kill -KILL {pid}")
         return f"SELECT 'KILL PID {pid}';";
+    if query.upper().startswith("TRANSIT CANCEL"):
+        pid = query.split()[-1].replace(";", "")
+        try:
+            int(pid)
+        except:
+            return f"SELECT 'ERROR Cannot cancel {pid} - wrong pid number';";
+        os.system(f"kill -s SIGUSR1 {pid}")
+        return f"SELECT 'CANCEL PID {pid}';";
     if "pg_terminate_backend(".upper() in query.upper():
         pid = query.split("(")[1].split(")")[0]
         PID_TERMINATIONS[pid][0] += 1
@@ -128,7 +136,7 @@ CREATE TABLE IF NOT EXISTS public.hc_settings
 
         # query = query.replace("WAIT ", "", 1).replace("wait ", "", 1)
         query = query.split(str_timeout, 1)[1].strip()
-    if query.startswith("TRANSIT ") or query.startswith("EXPLAIN TO ") or query.startswith("EXPLAIN TRANSIT "):
+    if query.startswith("TRANSIT ") or query.startswith("EXPLAIN TO ") or query.startswith("EXPLAIN TRANSIT ") or query.startswith("TRAIN "):
         query = query.replace("'", "''")
         session.PLAN_STATES[context["pg_conn"].name] = (plan_id, context["conn"], context["pg_conn"])
         return f"CALL hyperc_transit('{query}', '{plan_id}');"

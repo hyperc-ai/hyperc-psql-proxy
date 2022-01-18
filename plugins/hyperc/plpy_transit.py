@@ -159,7 +159,11 @@ tables_names = []
 write_enabled = True
 write_only_to = []
 
+op_time = -1
 if any(x in sql_command_l.upper() for x in autotransit_commands) or sql_command_l.upper().startswith("EXPLAIN TO") or sql_command_l.upper().startswith("EXPLAIN TRANSIT"):
+    if sql_command_l.upper().startswith("TRAIN "):
+        op_time = int(sql_command_l.split()[1])
+        sql_command_l = sql_command_l.split(maxsplit=2)[-1]
     if sql_command_l.upper().startswith("EXPLAIN ") and not sql_command_l.upper().startswith("EXPLAIN TO "):
         sql_command_l = sql_command_l.replace("EXPLAIN ", "", 1).replace("explain ", "", 1)
         write_enabled = False
@@ -284,7 +288,7 @@ with open(input_py, 'w') as file:
 
 base = {}
 for t_n in set(tables_names):
-    base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 1000))))
+    base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 50000))))
     row_check = next(iter(base[t_n].values()))
     logger.debug(base[t_n])
     for col, v in row_check.items():
@@ -293,136 +297,138 @@ for t_n in set(tables_names):
 
 
 et = hyper_etable.etable.ETable(project_name='hypercdb')
+if op_time != -1:
+    et.metadata = {"run_rule_optimization": op_time}
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
 et.dump_py(out_filename='/tmp/classes.py')
 et.solver_call_plan_n_exec()
 os.remove(input_py)
+if op_time == -1: 
+    updates = defaultdict(list)
+    inserts = defaultdict(list)
 
-updates = defaultdict(list)
-inserts = defaultdict(list)
+    updates_q = defaultdict(list)
+    inserts_q = defaultdict(list)
 
-updates_q = defaultdict(list)
-inserts_q = defaultdict(list)
+    updated_columns = defaultdict(list)
 
-updated_columns = defaultdict(list)
+    if write_enabled:
+        tables = db_connector.get_update()
+        logger.debug(f"Update: {tables}")
+        for tablename, rows in tables.items():
+            if len(rows) == 0:
+                continue
+            if write_only_to_tables and tablename not in write_only_to_tables: continue
+            pks = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_PRIMARYKEYS.format(table_name=tablename))}
+            all_columns = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_ALLCOLUMNS.format(table_name=tablename))}
+            for _, row in rows.items():
+                update_where_q = []
+                update_where_kv = {}
+                update_set_q = []
+                update_set_kv = {}
+                updates[tablename].append(row)
+                for colname, val in row.items():
+                    if colname in pks:
+                        update_where_q.append(f"{colname} = {repr(val)}")
+                        update_where_kv[colname] = val
+                    else:
+                        if type(val) == str and not "char" in all_columns[colname] and not "text" in all_columns[colname] and len(val) == 0:
+                            logger.warning(f"Skipping update of unsupported type {all_columns[colname]} for {tablename}.{colname} with value {repr(val)}")
+                            continue
+                        if len(write_only_to_tables_cols[tablename]) > 0 and colname not in write_only_to_tables_cols[tablename]:
+                            logger.debug(f"Skipping update of column {colname} as {tablename} has explicit column inclusions and {colname} is not included")
+                            continue
+                        updated_columns[tablename].append(colname)
+                        update_set_q.append(f"{colname} = {repr(val)}")
+                        update_set_kv[colname] = val
+                if len(update_set_q) == 0: 
+                    logger.warning(f"Skipping empty update for {tablename}: {row}")
+                    continue  # should never happen!
+                if len(update_where_q) == 0: 
+                    logger.warning(f"Skipping update for table without primary key {tablename}: {row}")
+                    continue 
+                set_subq = ", ".join(update_set_q)
+                where_subq = " AND ".join(update_where_q)
+                query = f'UPDATE {tablename} SET {set_subq} WHERE {where_subq};'
+                updates_q[tablename].append({
+                    "plan_id": local_plan_id,
+                    "step_num": -1,
+                    "proc_name": "",
+                    "op_type": "UPDATE",
+                    "summary": query,
+                    "data": json.dumps({"tablename": tablename, "values": update_set_kv, "where": update_where_kv})
+                })
+                logger.debug(f"Executing, {query}")
+                plpy.execute(query)
+            
 
-if write_enabled:
-    tables = db_connector.get_update()
-    logger.debug(f"Update: {tables}")
-    for tablename, rows in tables.items():
-        if len(rows) == 0:
-            continue
-        if write_only_to_tables and tablename not in write_only_to_tables: continue
-        pks = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_PRIMARYKEYS.format(table_name=tablename))}
-        all_columns = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_ALLCOLUMNS.format(table_name=tablename))}
-        for _, row in rows.items():
-            update_where_q = []
-            update_where_kv = {}
-            update_set_q = []
-            update_set_kv = {}
-            updates[tablename].append(row)
-            for colname, val in row.items():
-                if colname in pks:
-                    update_where_q.append(f"{colname} = {repr(val)}")
-                    update_where_kv[colname] = val
-                else:
-                    if type(val) == str and not "char" in all_columns[colname] and not "text" in all_columns[colname] and len(val) == 0:
-                        logger.warning(f"Skipping update of unsupported type {all_columns[colname]} for {tablename}.{colname} with value {repr(val)}")
-                        continue
-                    if len(write_only_to_tables_cols[tablename]) > 0 and colname not in write_only_to_tables_cols[tablename]:
-                        logger.debug(f"Skipping update of column {colname} as {tablename} has explicit column inclusions and {colname} is not included")
-                        continue
-                    updated_columns[tablename].append(colname)
-                    update_set_q.append(f"{colname} = {repr(val)}")
-                    update_set_kv[colname] = val
-            if len(update_set_q) == 0: 
-                logger.warning(f"Skipping empty update for {tablename}: {row}")
-                continue  # should never happen!
-            if len(update_where_q) == 0: 
-                logger.warning(f"Skipping update for table without primary key {tablename}: {row}")
-                continue 
-            set_subq = ", ".join(update_set_q)
-            where_subq = " AND ".join(update_where_q)
-            query = f'UPDATE {tablename} SET {set_subq} WHERE {where_subq};'
-            updates_q[tablename].append({
-                "plan_id": local_plan_id,
-                "step_num": -1,
-                "proc_name": "",
-                "op_type": "UPDATE",
-                "summary": query,
-                "data": json.dumps({"tablename": tablename, "values": update_set_kv, "where": update_where_kv})
-            })
-            logger.debug(f"Executing, {query}")
-            plpy.execute(query)
-        
+        tables = db_connector.get_append()
+        logger.debug(f"Append: {tables}")
+        for tablename, rows in tables.items():
+            if len(rows) == 0:
+                continue
+            if write_only_to_tables and tablename not in write_only_to_tables: continue
+            for _, row in rows.items():
+                inserts[tablename].append(row)
+                val = ", ".join([f'\'{repr(val)}\'' for _, val in row.items()])
+                col_name = ", ".join([f'"{col}"' for col, _ in row.items()])
+                query = f"INSERT INTO {tablename} ({col_name}) VALUES ({val});"
+                inserts_q[tablename].append({
+                    "plan_id": local_plan_id,
+                    "step_num": -1,
+                    "proc_name": "",
+                    "op_type": "INSERT",
+                    "summary": query,
+                    "data": json.dumps({"tablename": tablename, "values": dict(row)})
+                })
+                logger.debug(f"Executing, {query}")
+                plpy.execute(query)
 
-    tables = db_connector.get_append()
-    logger.debug(f"Append: {tables}")
-    for tablename, rows in tables.items():
-        if len(rows) == 0:
-            continue
-        if write_only_to_tables and tablename not in write_only_to_tables: continue
-        for _, row in rows.items():
-            inserts[tablename].append(row)
-            val = ", ".join([f'\'{repr(val)}\'' for _, val in row.items()])
-            col_name = ", ".join([f'"{col}"' for col, _ in row.items()])
-            query = f"INSERT INTO {tablename} ({col_name}) VALUES ({val});"
-            inserts_q[tablename].append({
-                "plan_id": local_plan_id,
-                "step_num": -1,
-                "proc_name": "",
-                "op_type": "INSERT",
-                "summary": query,
-                "data": json.dumps({"tablename": tablename, "values": dict(row)})
-            })
-            logger.debug(f"Executing, {query}")
-            plpy.execute(query)
+    istep = 0
 
-istep = 0
+    logger.debug(f"Plan: {et.metadata['store_simple']}")
 
-logger.debug(f"Plan: {et.metadata['store_simple']}")
-
-for step in et.metadata["store_simple"]:
-    func_object = step[0]
-    if not func_object.__name__ in input_parameters_classes: continue
-    func_kwargs_before = step[1]
-    func_kwargs_after = step[2]
-    step_data = {
-        "proc_name": func_object.__name__,
-        "parameters_classes": input_parameters_classes[func_object.__name__],
-        "input_parameters": func_kwargs_before,
-        "output_parameters": func_kwargs_after,
-    }
-    l_summary = []
-    for k, values in func_kwargs_before.items():
-        val_s = ",".join(["%s:%s" % (col,x) for col,x in values.items()])
-        l_summary.append(f"{k}={val_s}")
-    summary = "/".join(l_summary)
-    query_ins = f"INSERT INTO hc_plan (plan_id, step_num, proc_name, summary, data, op_type) VALUES ('{local_plan_id}', {istep}, '{func_object.__name__}', '{summary}', '{json.dumps(step_data)}', 'STEP');"
-    logger.debug(query_ins)
-    plpy.execute(query_ins)
-    istep += 1
-
-logger.debug(f"UPS/INS {updates_q}, {inserts_q}")
-
-for tablename, updates in updates_q.items():
-    for up in updates:
-        colq = ", ".join(list(up.keys()))
-        valq = ", ".join([to_sql(x) for x in up.values()])
-        query_ins = f"INSERT INTO hc_plan ({colq}) VALUES ({valq});"
+    for step in et.metadata["store_simple"]:
+        func_object = step[0]
+        if not func_object.__name__ in input_parameters_classes: continue
+        func_kwargs_before = step[1]
+        func_kwargs_after = step[2]
+        step_data = {
+            "proc_name": func_object.__name__,
+            "parameters_classes": input_parameters_classes[func_object.__name__],
+            "input_parameters": func_kwargs_before,
+            "output_parameters": func_kwargs_after,
+        }
+        l_summary = []
+        for k, values in func_kwargs_before.items():
+            val_s = ",".join(["%s:%s" % (col,x) for col,x in values.items()])
+            l_summary.append(f"{k}={val_s}")
+        summary = "/".join(l_summary)
+        query_ins = f"INSERT INTO hc_plan (plan_id, step_num, proc_name, summary, data, op_type) VALUES ('{local_plan_id}', {istep}, '{func_object.__name__}', '{summary}', '{json.dumps(step_data)}', 'STEP');"
         logger.debug(query_ins)
         plpy.execute(query_ins)
+        istep += 1
+
+    logger.debug(f"UPS/INS {updates_q}, {inserts_q}")
+
+    for tablename, updates in updates_q.items():
+        for up in updates:
+            colq = ", ".join(list(up.keys()))
+            valq = ", ".join([to_sql(x) for x in up.values()])
+            query_ins = f"INSERT INTO hc_plan ({colq}) VALUES ({valq});"
+            logger.debug(query_ins)
+            plpy.execute(query_ins)
 
 
-for tablename, updates in inserts_q.items():
-    for up in updates:
-        colq = ", ".join(list(up.keys()))
-        valq = ", ".join([to_sql(x) for x in up.values()])
-        query_ins = f"INSERT INTO hc_plan ({colq}) VALUES ({valq});"
-        logger.debug(query_ins)
-        plpy.execute(query_ins)
+    for tablename, updates in inserts_q.items():
+        for up in updates:
+            colq = ", ".join(list(up.keys()))
+            valq = ", ".join([to_sql(x) for x in up.values()])
+            query_ins = f"INSERT INTO hc_plan ({colq}) VALUES ({valq});"
+            logger.debug(query_ins)
+            plpy.execute(query_ins)
 
-plogger.removeHandler(local_h)
-local_h.conn.close()
+    plogger.removeHandler(local_h)
+    local_h.conn.close()
 
-# $BDY$;
+    # $BDY$;
