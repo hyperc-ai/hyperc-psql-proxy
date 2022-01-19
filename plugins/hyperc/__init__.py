@@ -26,8 +26,20 @@ def rewrite_query(query, context):
             int(pid)
         except:
             return f"SELECT 'ERROR Cannot cancel {pid} - wrong pid number';";
-        os.system(f"kill -s SIGUSR1 {pid}")
-        return f"SELECT 'CANCEL PID {pid}';";
+        # TODO: check which cancel port this process is listening to!
+        # STUB! just stop whoever is listening to port 8494
+        import urllib.request
+        urllib.request.urlopen("http://localhost:8494/").read()
+    if query.upper().startswith("TRAIN CANCEL"):
+        pid = query.split()[-1].replace(";", "")
+        try:
+            int(pid)
+        except:
+            return f"SELECT 'ERROR Cannot cancel {pid} - wrong pid number';";
+        # TODO: check which cancel port this process is listening to!
+        # STUB! just stop whoever is listening to port 8494
+        import urllib.request
+        urllib.request.urlopen("http://localhost:8495/").read()
     if "pg_terminate_backend(".upper() in query.upper():
         pid = query.split("(")[1].split(")")[0]
         PID_TERMINATIONS[pid][0] += 1
