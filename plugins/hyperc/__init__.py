@@ -29,7 +29,11 @@ def rewrite_query(query, context):
         # TODO: check which cancel port this process is listening to!
         # STUB! just stop whoever is listening to port 8494
         import urllib.request
-        urllib.request.urlopen("http://localhost:8494/").read()
+        for i in range(10):
+            try:
+                urllib.request.urlopen(f"http://localhost:{8494+i}/").read()
+            except:
+                pass
     if query.upper().startswith("TRAIN CANCEL"):
         pid = query.split()[-1].replace(";", "")
         try:
@@ -39,7 +43,11 @@ def rewrite_query(query, context):
         # TODO: check which cancel port this process is listening to!
         # STUB! just stop whoever is listening to port 8494
         import urllib.request
-        urllib.request.urlopen("http://localhost:8495/").read()
+        for i in range(10):
+            try:
+                urllib.request.urlopen(f"http://localhost:{9494+i}/").read()
+            except:
+                pass
     if "pg_terminate_backend(".upper() in query.upper():
         pid = query.split("(")[1].split(")")[0]
         PID_TERMINATIONS[pid][0] += 1
