@@ -34,6 +34,7 @@ def rewrite_query(query, context):
                 urllib.request.urlopen(f"http://localhost:{8494+i}/").read()
             except:
                 pass
+        return f"SELECT 'CANCEL PID {pid}';";
     if query.upper().startswith("TRAIN CANCEL"):
         pid = query.split()[-1].replace(";", "")
         try:
@@ -48,6 +49,7 @@ def rewrite_query(query, context):
                 urllib.request.urlopen(f"http://localhost:{9494+i}/").read()
             except:
                 pass
+        return f"SELECT 'CANCEL PID {pid}';";
     if "pg_terminate_backend(".upper() in query.upper():
         pid = query.split("(")[1].split(")")[0]
         PID_TERMINATIONS[pid][0] += 1
