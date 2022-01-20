@@ -31,7 +31,7 @@ def rewrite_query(query, context):
         import urllib.request
         for i in range(10):
             try:
-                urllib.request.urlopen(f"http://localhost:{8494+i}/").read()
+                urllib.request.urlopen(f"http://localhost:{8494+i}/", timeout=0.5).read()
             except:
                 pass
         return f"SELECT 'CANCEL PID {pid}';";
@@ -46,7 +46,7 @@ def rewrite_query(query, context):
         import urllib.request
         for i in range(10):
             try:
-                urllib.request.urlopen(f"http://localhost:{9494+i}/").read()
+                urllib.request.urlopen(f"http://localhost:{9494+i}/", timeout=0.5).read()
             except:
                 pass
         return f"SELECT 'CANCEL PID {pid}';";
