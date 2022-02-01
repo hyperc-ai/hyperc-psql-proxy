@@ -289,6 +289,7 @@ with open(input_py, 'w') as file:
 base = {}
 for t_n in set(tables_names):
     base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 50000))))
+    try:
     row_check = next(iter(base[t_n].values()))
     logger.debug(base[t_n])
     for col, v in row_check.items():
