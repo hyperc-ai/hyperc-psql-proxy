@@ -290,7 +290,9 @@ base = {}
 for t_n in set(tables_names):
     base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 50000))))
     try:
-    row_check = next(iter(base[t_n].values()))
+        row_check = next(iter(base[t_n].values()))
+    except StopIteration:
+        continue
     logger.debug(base[t_n])
     for col, v in row_check.items():
         if v is None:
