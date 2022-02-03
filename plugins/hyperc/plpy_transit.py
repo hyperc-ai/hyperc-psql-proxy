@@ -37,12 +37,14 @@ if len(pplogger.handlers) < 1:
 from logging import StreamHandler
 import psycopg2
 
+
+current_dbname = list(plpy.execute("SELECT current_database()"))[0]["current_database"]
+
 class SelfHandler(StreamHandler):
 
     def __init__(self):
         StreamHandler.__init__(self)
-        dbname = list(plpy.execute("SELECT current_database()"))[0]["current_database"]
-        self.conn = psycopg2.connect(database=dbname, user="postgres", host="/tmp/")
+        self.conn = psycopg2.connect(database=current_dbname, user="postgres", host="/tmp/")
 
     def emit(self, record):
         msg = self.format(record)
@@ -162,7 +164,10 @@ write_only_to = []
 op_time = -1
 if any(x in sql_command_l.upper() for x in autotransit_commands) or sql_command_l.upper().startswith("EXPLAIN TO") or sql_command_l.upper().startswith("EXPLAIN TRANSIT"):
     if sql_command_l.upper().startswith("TRAIN "):
-        op_time = int(sql_command_l.split()[1])
+        try:
+            op_time = int(sql_command_l.split()[1])
+        except:
+            plpy.error("Invalid syntax for TRAIN")
         sql_command_l = sql_command_l.split(maxsplit=2)[-1]
     if sql_command_l.upper().startswith("EXPLAIN ") and not sql_command_l.upper().startswith("EXPLAIN TO "):
         sql_command_l = sql_command_l.replace("EXPLAIN ", "", 1).replace("explain ", "", 1)
@@ -292,6 +297,7 @@ for t_n in set(tables_names):
     try:
         row_check = next(iter(base[t_n].values()))
     except StopIteration:
+        logger.debug(f"Table `{t_n}` used but is empty")
         continue
     logger.debug(base[t_n])
     for col, v in row_check.items():
@@ -299,7 +305,7 @@ for t_n in set(tables_names):
             plpy.error(f"NULL and None values in tables for HyperC procedures are not supported (table `{t_n}` column `{col}`)")
 
 
-et = hyper_etable.etable.ETable(project_name='hypercdb')
+et = hyper_etable.etable.ETable(project_name=current_dbname)
 if op_time != -1:
     et.metadata = {"run_rule_optimization": op_time}
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
