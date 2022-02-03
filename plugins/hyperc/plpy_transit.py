@@ -95,6 +95,7 @@ WHERE
 
 # load and apply settings
 SETTINGS_TABLE_NAME = "hc_settings"
+DUMP_DATA = 0
 table_settings = plpy.execute(f"SELECT parameter, type, value from {SETTINGS_TABLE_NAME}")
 for setting in table_settings:
     sname = str(setting["parameter"])
@@ -108,7 +109,9 @@ for setting in table_settings:
         value = str(setting["value"])
     else:
         plpy.error(f"Unsupported setting type {stype} found in {SETTINGS_TABLE_NAME} table: {sname}({stype})={repr(sval)} - only 'str' and 'int' are supported")
-    if not sname in hyperc.settings.__dict__:
+    if sname == "DUMP_DATA":
+        DUMP_DATA = value
+    elif not sname in hyperc.settings.__dict__:
         plpy.error(f"Unsupported setting name {sname} found in {SETTINGS_TABLE_NAME}")
     setattr(hyperc.settings, sname, value)
     os.environ[sname] = str(value)
@@ -139,7 +142,7 @@ if not plan_id:
 else:
     local_plan_id = plan_id
  
-input_py = f'/tmp/actions_{local_plan_id}.py'
+input_py = f'/tmp/actions_{current_dbname}_{local_plan_id}.py'
 sql_command_l = sql_command
 supported_commands = ["INSERT", "UPDATE"]
 
@@ -308,6 +311,9 @@ for t_n in set(tables_names):
 et = hyper_etable.etable.ETable(project_name=current_dbname)
 if op_time != -1:
     et.metadata = {"run_rule_optimization": op_time}
+if DUMP_DATA:
+    import pickle
+    pickle.dump(base, open("/tmp/hc_base.pickle", "wb"))
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
 et.dump_py(out_filename='/tmp/classes.py')
 et.solver_call_plan_n_exec()
