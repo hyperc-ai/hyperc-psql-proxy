@@ -344,7 +344,7 @@ if op_time == -1:
                 updates[tablename].append(row)
                 for colname, val in row.items():
                     if colname in pks:
-                        update_where_q.append(f"{colname} = {repr(val)}")
+                        update_where_q.append(f"\"{colname}\" = {repr(val)}")
                         update_where_kv[colname] = val
                     else:
                         if type(val) == str and not "char" in all_columns[colname] and not "text" in all_columns[colname] and len(val) == 0:
@@ -354,7 +354,7 @@ if op_time == -1:
                             logger.debug(f"Skipping update of column {colname} as {tablename} has explicit column inclusions and {colname} is not included")
                             continue
                         updated_columns[tablename].append(colname)
-                        update_set_q.append(f"{colname} = {repr(val)}")
+                        update_set_q.append(f"\"{colname}\" = {repr(val)}")
                         update_set_kv[colname] = val
                 if len(update_set_q) == 0: 
                     logger.warning(f"Skipping empty update for {tablename}: {row}")
