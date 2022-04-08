@@ -237,7 +237,7 @@ input_parameters_classes = {}
 sources_list = []
 for src in plpy.execute(SQL_PROCEDURES):
     if not src['function_arguments'].strip(): continue  # ignore procedures without arguments
-    args = ", ".join([f"{argpair.strip().split()[-2]}: {argpair.strip().split()[-1].upper()}_Class" for argpair in src['function_arguments'].split(",")])
+    args = ", ".join([f"{argpair.strip().split()[-2]}: {argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")])
     tables_names.extend([f"{argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")])
     input_parameters_classes[src['function_name']] = {f"{argpair.strip().split()[-2]}":f"{argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")}
     fun_src = f"""def {src['function_name']}({args}):\n    pass\n"""
@@ -258,7 +258,7 @@ if not goal_func:
     for tbl in all_tables_names:
         if tbl in ("hc_plan", "hc_settings", "hc_log"): continue
         logger.debug(f"Scanning for change {tbl}")
-        updates = plpy.execute(f"SELECT * FROM {tbl} WHERE xmin::text = ((txid_current()+1) % (2^32)::bigint)::text;")
+        updates = plpy.execute(f"SELECT * FROM \"{tbl}\" WHERE xmin::text = ((txid_current()+1) % (2^32)::bigint)::text;")
         txid_current = plpy.execute(f"SELECT txid_current();")
         logger.debug(f"Seeing updates for {tbl}: {updates} with {txid_current}")
         local_varnames = []
@@ -267,7 +267,7 @@ if not goal_func:
             varname = f"selected_{tbl}_{fun_argcount[tbl]}"
             local_varnames.append(varname)
             fun_argcount[tbl] += 1
-            fun_args.append(f"{varname}: {tbl.upper()}_Class")
+            fun_args.append(f"{varname}: {tbl}")
             for k, v in dict(updated_row).items():
                 if k.upper() not in stub_hashed_commands.upper():
                     continue
@@ -296,7 +296,7 @@ with open(input_py, 'w') as file:
 
 base = {}
 for t_n in set(tables_names):
-    base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM {t_n}", 50000))))
+    base[t_n] = dict(enumerate(list(plpy.execute(f"SELECT * FROM \"{t_n}\"", 50000))))
     try:
         row_check = next(iter(base[t_n].values()))
     except StopIteration:
@@ -364,7 +364,7 @@ if op_time == -1:
                     continue 
                 set_subq = ", ".join(update_set_q)
                 where_subq = " AND ".join(update_where_q)
-                query = f'UPDATE {tablename} SET {set_subq} WHERE {where_subq};'
+                query = f'UPDATE "{tablename}" SET {set_subq} WHERE {where_subq};'
                 updates_q[tablename].append({
                     "plan_id": local_plan_id,
                     "step_num": -1,
@@ -385,9 +385,9 @@ if op_time == -1:
             if write_only_to_tables and tablename not in write_only_to_tables: continue
             for _, row in rows.items():
                 inserts[tablename].append(row)
-                val = ", ".join([f'\'{repr(val)}\'' for _, val in row.items()])
+                val = ", ".join([f'{repr(val)}' for _, val in row.items()])
                 col_name = ", ".join([f'"{col}"' for col, _ in row.items()])
-                query = f"INSERT INTO {tablename} ({col_name}) VALUES ({val});"
+                query = f"INSERT INTO \"{tablename}\" ({col_name}) VALUES ({val});"
                 inserts_q[tablename].append({
                     "plan_id": local_plan_id,
                     "step_num": -1,
