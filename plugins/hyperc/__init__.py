@@ -60,6 +60,20 @@ def rewrite_query(query, context):
             else:
                 del PID_TERMINATIONS[pid]
         return query
+    if query.upper().startswith("TRANSIT UPGRADE"):
+        HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
+        dbname = context['connect_params']['database']
+        username = context['connect_params']['user']
+        conn = psycopg2.connect(database=dbname, user="postgres", host="/tmp/")
+        cur = conn.cursor()
+        cur.execute('DROP PROCEDURE IF EXISTS hyperc_transit')
+        cur.execute(f"""
+CREATE PROCEDURE public.hyperc_transit(sql_command character varying, plan_id character varying)
+    LANGUAGE plpython3u
+AS $_$
+{HYPERC_TRANSIT_FUNC}
+$_$;""")
+        return "SELECT 'LATEST TRANSIT FUNCTION INSTALLED';";
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
         dbname = context['connect_params']['database']
