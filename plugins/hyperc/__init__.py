@@ -73,6 +73,9 @@ CREATE PROCEDURE public.hyperc_transit(sql_command character varying, plan_id ch
 AS $_$
 {HYPERC_TRANSIT_FUNC}
 $_$;""")
+        cur.close()
+        conn.commit()
+        conn.close()
         return "SELECT 'LATEST TRANSIT FUNCTION INSTALLED';";
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
