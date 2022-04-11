@@ -13,6 +13,7 @@ import importlib
 #     sql_command: Any = {}
 
 import hyperc
+from  diskcache import Cache
 import hyperc.settings
 import json
 from collections import defaultdict
@@ -314,6 +315,12 @@ if op_time != -1:
 if DUMP_DATA:
     import pickle
     pickle.dump(base, open("/tmp/hc_base.pickle", "wb"))
+domain_cache = Cache(directory=hyperc.settings.HYPERC_CACHE_DIR)
+# workaround for dirty dump of hct_goal function
+for k in list(domain_cache):
+    if k.startswith("hct_main_goal"):
+        del domain_cache[k]
+        break
 db_connector = et.open_from(path=base, has_header=True, proto='raw', addition_python_files=[input_py])
 et.dump_py(out_filename='/tmp/classes.py')
 et.solver_call_plan_n_exec()
