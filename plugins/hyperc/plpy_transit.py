@@ -272,7 +272,7 @@ if not goal_func:
                 if k.upper() not in stub_hashed_commands.upper():
                     continue
                 logger.debug(f"Scanning for change {tbl} row {updated_row} item {k}, {v}")
-                goal_fun_src.append(f"assert {varname}.{k.upper()} == {repr(v)}")
+                goal_fun_src.append(f"assert {varname}.{k} == {repr(v)}")
             for ineq_pair in combinations(local_varnames, 2):
                 goal_fun_src.append(f"assert {ineq_pair[0]} != {ineq_pair[1]}")
     if len(goal_fun_src) == 0:
