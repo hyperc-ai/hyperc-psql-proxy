@@ -57,7 +57,10 @@ local_h = SelfHandler()
 plogger.addHandler(local_h)
         
     
-
+INT_TYPES = ("integer", "bigint", "smallint")
+FLOAT_TYPES = ("numeric", "real", "double precision")
+STR_TYPES = ("text", "character", "character varying")
+BOOL_TYPES = ("boolean")
 
 SQL_PROCEDURES = """
 select n.nspname as function_schema,
@@ -93,6 +96,19 @@ FROM
 WHERE
     table_name = '{table_name}';
 """
+
+SQL_GET_IDENTITY = """
+SELECT
+    column_name,
+    is_identity
+FROM
+    information_schema.columns
+WHERE
+    table_name = '{table_name}';
+"""
+
+class AnnotatedTable(dict):
+    proposed_annotations: dict
 
 # load and apply settings
 SETTINGS_TABLE_NAME = "hc_settings"
@@ -302,6 +318,23 @@ for t_n in set(tables_names):
         row_check = next(iter(base[t_n].values()))
     except StopIteration:
         logger.debug(f"Table `{t_n}` used but is empty")
+        all_columns_types = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_ALLCOLUMNS.format(table_name=t_n))}
+        for c_n in all_columns_types:
+            tp = all_columns_types[c_n]
+            if tp in INT_TYPES:
+                t = int
+            elif tp in FLOAT_TYPES:
+                t = float
+            elif tp in STR_TYPES:
+                t = str
+            elif tp in BOOL_TYPES:
+                t = bool
+            else:
+                plpy.error(f"Type `{tp}` is not supported for empty table `{t_n}`")
+                raise TypeError(f"Type `{tp}` is not supported for empty table `{t_n}`")
+            all_columns_types[c_n] = t
+        base[t_n] = AnnotatedTable(base[t_n])
+        base[t_n].proposed_annotations = all_columns_types
         continue
     logger.debug(base[t_n])
     for col, v in row_check.items():
@@ -342,7 +375,7 @@ if op_time == -1:
                 continue
             if write_only_to_tables and tablename not in write_only_to_tables: continue
             pks = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_PRIMARYKEYS.format(table_name=tablename))}
-            all_columns = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_ALLCOLUMNS.format(table_name=tablename))}
+            all_columns_types = {x["column_name"]:x["data_type"] for x in plpy.execute(SQL_GET_ALLCOLUMNS.format(table_name=tablename))}
             for _, row in rows.items():
                 update_where_q = []
                 update_where_kv = {}
@@ -354,8 +387,8 @@ if op_time == -1:
                         update_where_q.append(f"\"{colname}\" = {repr(val)}")
                         update_where_kv[colname] = val
                     else:
-                        if type(val) == str and not "char" in all_columns[colname] and not "text" in all_columns[colname] and len(val) == 0:
-                            logger.warning(f"Skipping update of unsupported type {all_columns[colname]} for {tablename}.{colname} with value {repr(val)}")
+                        if type(val) == str and not "char" in all_columns_types[colname] and not "text" in all_columns_types[colname] and len(val) == 0:
+                            logger.warning(f"Skipping update of unsupported type {all_columns_types[colname]} for {tablename}.{colname} with value {repr(val)}")
                             continue
                         if len(write_only_to_tables_cols[tablename]) > 0 and colname not in write_only_to_tables_cols[tablename]:
                             logger.debug(f"Skipping update of column {colname} as {tablename} has explicit column inclusions and {colname} is not included")
@@ -390,10 +423,18 @@ if op_time == -1:
             if len(rows) == 0:
                 continue
             if write_only_to_tables and tablename not in write_only_to_tables: continue
+            id_columns = {x["column_name"]:x["is_identity"] for x in plpy.execute(SQL_GET_IDENTITY.format(table_name=tablename))}
             for _, row in rows.items():
                 inserts[tablename].append(row)
-                val = ", ".join([f'{repr(val)}' for _, val in row.items()])
-                col_name = ", ".join([f'"{col}"' for col, _ in row.items()])
+                cols = []
+                vals = []
+                for col, val in row.items():
+                    if val == "" and id_columns[col] == "YES":
+                        continue
+                    cols.append(f'"{col}"')
+                    vals.append(repr(val))
+                val = ", ".join(vals)
+                col_name = ", ".join(cols)
                 query = f"INSERT INTO \"{tablename}\" ({col_name}) VALUES ({val});"
                 inserts_q[tablename].append({
                     "plan_id": local_plan_id,
