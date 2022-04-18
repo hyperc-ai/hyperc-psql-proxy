@@ -77,6 +77,12 @@ $_$;""")
         conn.commit()
         conn.close()
         return "SELECT 'LATEST TRANSIT FUNCTION INSTALLED';";
+    if query.upper().startswith("DROP CACHE ALL"):
+        from diskcache import Cache
+        from hyperc import settings
+        domain_cache = Cache(directory=settings.HYPERC_CACHE_DIR, eviction_policy='least-recently-used')
+        for k in domain_cache: del domain_cache[k]
+        return "SELECT 'DELETED COMPILED PROCEDURES';";
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
         dbname = context['connect_params']['database']
