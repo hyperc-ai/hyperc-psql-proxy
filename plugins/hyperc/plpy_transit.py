@@ -344,7 +344,7 @@ for t_n in set(tables_names):
 
 et = hyper_etable.etable.ETable(project_name=current_dbname)
 if op_time != -1:
-    et.metadata = {"run_rule_optimization": op_time}
+    et.metadata = {"run_rule_optimization": op_time, "ignore_cached": True}
 if DUMP_DATA:
     import pickle
     pickle.dump(base, open("/tmp/hc_base.pickle", "wb"))
