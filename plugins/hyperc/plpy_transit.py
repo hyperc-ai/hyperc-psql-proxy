@@ -259,6 +259,10 @@ for src in plpy.execute(SQL_PROCEDURES):
     input_parameters_classes[src['function_name']] = {f"{argpair.strip().split()[-2]}":f"{argpair.strip().split()[-1]}" for argpair in src['function_arguments'].split(",")}
     fun_src = f"""def {src['function_name']}({args}):\n    pass\n"""
     for src_line in src["source"].split("\n"):
+        if src_line.strip().startswith("global ") and "# type:" in src_line:
+            global_var_name = src_line.split("global ")[1].strip().split()[0]  # take var name
+            global_var_type = src_line.split("# type:")[1].strip()
+            fun_src = f"{global_var_name} = DATA.{global_var_type}_0\n{fun_src}"
         fun_src += "    "+src_line+"\n"
     if src['function_name'] == goal_func:
         fun_src += "    DATA.GOAL = True\n"
