@@ -5,9 +5,23 @@ import uuid
 import session
 import threading
 import os 
+from diskcache import Cache
+from hyperc import settings
 dir_path = os.path.dirname(os.path.realpath(__file__))
 from collections import defaultdict
 PID_TERMINATIONS = defaultdict(lambda: [0, time.time()])
+
+def drop_compile_caches():
+    domain_cache = Cache(directory=settings.HYPERC_CACHE_DIR, eviction_policy='least-recently-used')
+    for k in domain_cache: 
+        if not k.startswith("MACH_ORDER___"):
+            del domain_cache[k]
+
+def drop_match_orders():
+    domain_cache = Cache(directory=settings.HYPERC_CACHE_DIR, eviction_policy='least-recently-used')
+    for k in domain_cache: 
+        if k.startswith("MACH_ORDER___"):
+            del domain_cache[k]
 
 def rewrite_query(query, context):
     plan_id = str(uuid.uuid4())
@@ -77,12 +91,12 @@ $_$;""")
         conn.commit()
         conn.close()
         return "SELECT 'LATEST TRANSIT FUNCTION INSTALLED';";
-    if query.upper().startswith("DROP CACHE ALL"):
-        from diskcache import Cache
-        from hyperc import settings
-        domain_cache = Cache(directory=settings.HYPERC_CACHE_DIR, eviction_policy='least-recently-used')
-        for k in domain_cache: del domain_cache[k]
+    if query.upper().startswith("DROP CACHE"):
+        drop_compile_caches()
         return "SELECT 'DELETED COMPILED PROCEDURES';";
+    if query.upper().startswith("DROP TRAINING"):
+        drop_match_orders()
+        return "SELECT 'DELETED JOIN ORDER TRAINING';";
     if query.upper().startswith("TRANSIT INIT"):
         HYPERC_TRANSIT_FUNC = open(os.path.join(dir_path, "plpy_transit.py")).read()
         dbname = context['connect_params']['database']
