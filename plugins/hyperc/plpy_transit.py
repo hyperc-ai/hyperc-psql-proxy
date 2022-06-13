@@ -263,6 +263,8 @@ for src in plpy.execute(SQL_PROCEDURES):
             global_var_name = src_line.split("global ")[1].strip().split()[0]  # take var name
             global_var_type = src_line.split("# type:")[1].strip()
             fun_src = f"{global_var_name} = DATA.{global_var_type}_0\n{fun_src}"
+            if not global_var_type in tables_names:
+                tables_names.append(global_var_type)
         fun_src += "    "+src_line+"\n"
     if src['function_name'] == goal_func:
         fun_src += "    DATA.GOAL = True\n"
